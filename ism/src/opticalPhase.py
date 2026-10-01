@@ -1,4 +1,3 @@
-
 from ism.src.initIsm import initIsm
 from math import pi
 from ism.src.mtf import mtf
@@ -14,8 +13,8 @@ from common.src.auxFunc import getIndexBand
 
 class opticalPhase(initIsm):
 
-    def __init__(self, auxdir, indir, outdir):
-        super().__init__(auxdir, indir, outdir)
+    def _init_(self, auxdir, indir, outdir):
+        super()._init_(auxdir, indir, outdir)
 
     def compute(self, sgm_toa, sgm_wv, band):
         """
@@ -93,6 +92,7 @@ class opticalPhase(initIsm):
         :return: TOA image in irradiances [mW/m2]
         """
         # TODO
+        toa = Tr * toa * (np.pi /4) * ((D/f)**2)
         return toa
 
 
@@ -104,6 +104,11 @@ class opticalPhase(initIsm):
         :return: TOA image in irradiances [mW/m2]
         """
         # TODO
+        GE = fft2(toa)
+        Hsys_shifted = np.fft.fftshift(Hsys)
+        GE = GE*Hsys_shifted
+        toa_ft = np.fft.ifft2(GE)
+        toa_ft = np.real(toa_ft)
         return toa_ft
 
     def spectralIntegration(self, sgm_toa, sgm_wv, band):
@@ -115,28 +120,21 @@ class opticalPhase(initIsm):
         :return: TOA image 2D in radiances [mW/m2]
         """
         # TODO
-
         isrf, wv_isrf = readIsrf(self.auxdir + '/' + self.ismConfig.isrffile, band)
 
-        # 0. init output
+        # 0 inicialitez output
         toa = np.zeros((sgm_toa.shape[0], sgm_toa.shape[1]))
         # 1. normalis ISRF
         isrf = isrf / np.sum(isrf)
 
-        # 2. convertimos la wavelentgh en nm multiplicando por 1000
-        wv_isrf = wv_isrf * 1000  # nm
-
-        # create interpolant of the ISRF - interp ISRF to the sgm wavelengths
-
-        # interp_isrf = cs(sgm_wv)  # 1D vector
+        # 2. convert ISRF wavelengths to nanometers
+        wv_isrf = wv_isrf * 1000
 
         for ialt in range(sgm_toa.shape[0]):
             for iact in range(sgm_toa.shape[1]):
                 cs = interp1d(sgm_wv, sgm_toa[ialt, iact, :], fill_value=(0, 0), bounds_error=False)
                 sgm_inter = cs(wv_isrf)
-
                 toa[ialt, iact] = np.sum(sgm_inter * isrf)
 
+
         return toa
-
-
